@@ -19,6 +19,9 @@ Otherwise, first read this guide on how to [get started with Vault](https://www.
 
 To learn specifically about how plugins work, see documentation on [Vault plugins](https://www.vaultproject.io/docs/internals/plugins.html).
 
+### Authentication flow
+![alt text](https://github.com/RcRonco/vault-plugin-auth-oidc/blob/master/docs/data/Vault-SSO-Flow.png)
+
 ### Configuration
 
 1. Install and register the plugin.
