@@ -43,7 +43,7 @@ $ vault write sys/plugins/catalog/oidc-auth-plugin \
 
 ```sh
 $ vault auth-enable -path=oidc -plugin-name=oidc-auth-plugin plugin
-Successfully enabled 'kerberos' at 'oidc'!
+Successfully enabled 'oidc' at 'oidc'!
 ```
 
 3. Use the /config endpoint to configure OpenID Connect against Idp
