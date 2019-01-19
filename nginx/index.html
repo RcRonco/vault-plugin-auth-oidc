@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vault Login - SSO</title>
+    <script>
+        function getSearchParameters() {
+            var prmstr = window.location.search.substr(1);
+            return prmstr != null && prmstr != "" ? transformToAssocArray(prmstr) : {};
+        }
+
+        function transformToAssocArray( prmstr ) {
+            var params = {};
+            var prmarr = prmstr.split("&");
+            for ( var i = 0; i < prmarr.length; i++) {
+                var tmparr = prmarr[i].split("=");
+                params[tmparr[0]] = tmparr[1];
+            }
+            return params;
+        }
+
+        var params = getSearchParameters();
+        if (params.code !== "") {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    var vdata = JSON.parse(this.responseText);
+                    let authData = 
+                    {
+                        "displayName": vdata.auth.metadata.username,
+                        "token": vdata.auth.client_token,
+                        "policies": vdata.auth.policies, 
+                        "renewable": true,
+                        "entity_id": vdata.auth.entity_id,
+                        "ttl": vdata.auth.lease_duration
+                    }
+                    authData.backend = 
+                    {
+                        "type":"oidc",
+                        "typeDisplay":"OpenID Connect",
+                        "description":"A OpenID Connect SSO backend.",
+                       "tokenPath": "client_token",
+                       "displayNamePath":"metadata.username",
+                       "formAttributes":[
+                           "code",
+                           "state"
+                       ]
+                    } 
+                    window.localStorage.setItem("vault-oidc☃1", JSON.stringify(authData));
+                    window.location.href = "/ui"
+                }
+            };
+            var cbUrl = "/v1/auth/oidc/callback?code=" + params.code;
+            if (params.state !== "") {
+                 cbUrl = cbUrl + "&state=" + params.state;
+            }
+            xhttp.open("GET", cbUrl, true);
+            xhttp.send();
+        }
+    </script>
+</head>
+<body>
+
+</body>
+</html>
