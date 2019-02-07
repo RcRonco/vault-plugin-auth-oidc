@@ -2,7 +2,8 @@ package oidc
 
 import (
 	"context"
-
+	"github.com/coreos/go-oidc"
+	"github.com/go-errors/errors"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -40,18 +41,6 @@ func (b *openIDConnectAuthBackend) pathCallback(ctx context.Context, req *logica
 		return logical.ErrorResponse("could not load OIDC Mapping configuration"), nil
 	}
 
-	// Check for state nonce to mitigate CSRF
-	{
-		state, ok := b.stateCache.Get(req.Connection.RemoteAddr)
-		if !ok && req.Data["state"] != nil {
-			return logical.ErrorResponse("Could not find connection state, " +
-											  "this request may be forged or took over 5 minutes"), nil
-		}
-		if state != req.Data["state"].(string) {
-			return logical.ErrorResponse("state nonce not matching, this request may be forged"), nil
-		}
-	}
-
 	// Create provider
 	provider, err := b.getProvider(ctx, config)
 	if err != nil {
@@ -63,6 +52,12 @@ func (b *openIDConnectAuthBackend) pathCallback(ctx context.Context, req *logica
 	oauth2Token, err := oauthConfig.Exchange(ctx, req.Data["code"].(string))
 	if err != nil {
 		return nil, errwrap.Wrapf("Failed to exchange token: {{err}}", err)
+	}
+
+	// Check for state nonce to mitigate CSRF
+	err = b.verifyNonce(ctx, config, req, provider, oauth2Token)
+	if err != nil {
+		return nil, errwrap.Wrapf("Failed to verify nonce: {{err}}", err)
 	}
 
 	// Fetch user information JWT
@@ -99,6 +94,29 @@ func (b *openIDConnectAuthBackend) pathCallback(ctx context.Context, req *logica
 	}
 
 	return resp, nil
+}
+
+func (b *openIDConnectAuthBackend) verifyNonce(ctx context.Context, config *oidcConfig, req *logical.Request,
+											  provider *oidc.Provider, token *oauth2.Token) error {
+	nonceEnabledVerifier := provider.Verifier(&oidc.Config{
+		ClientID: config.ClientID,
+	})
+	// Verify the ID Token signature and nonce.
+	idToken, err := nonceEnabledVerifier.Verify(ctx, token.Extra("id_token").(string))
+	if err != nil {
+		return errors.New("Failed to verify ID Token: "+err.Error())
+	}
+
+	// Check for state nonce to mitigate CSRF
+	state, ok := b.stateCache.Get(req.Connection.RemoteAddr)
+	if !ok {
+		return errors.New("Could not find connection state, this request may be forged or took over 5 minutes")
+	}
+	if state != idToken.Nonce {
+		return errors.New("state nonce not matching, this request may be forged")
+	}
+
+	return nil
 }
 
 const (

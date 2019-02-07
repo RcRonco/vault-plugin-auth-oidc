@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"fmt"
+	"github.com/coreos/go-oidc"
 	"github.com/fatih/structs"
 	"github.com/hashicorp/vault/plugins/helper/database/credsutil"
 	"github.com/patrickmn/go-cache"
@@ -54,17 +55,17 @@ func (b *openIDConnectAuthBackend) pathLogin(ctx context.Context, req *logical.R
 	}
 
 	// Generate nonce
-	state, err := credsutil.RandomAlphaNumeric(16, true)
+	nonce, err := credsutil.RandomAlphaNumeric(16, true)
 	if err != nil {
 		return nil, errwrap.Wrapf("error to generate state nonce: {{err}}", err)
 	}
 
 	// Set nonce as state parameter in cache with Remote address to check for CSRF attempts
-	b.stateCache.Set(req.Connection.RemoteAddr, state, cache.DefaultExpiration)
+	b.stateCache.Set(req.Connection.RemoteAddr, nonce, cache.DefaultExpiration)
 	oauthConfig := config.config2OauthConfig(provider)
 
 	resp := &logical.Response{
-		Redirect: oauthConfig.AuthCodeURL(state),
+		Redirect: oauthConfig.AuthCodeURL(stateLogin, oidc.Nonce(nonce)),
 		Data: structs.New(oauthConfig).Map(),
 	}
 
@@ -80,4 +81,6 @@ const (
 	This endpoint authenticates using Auth0 with OpenID Connect. Please be sure to
 	read the note on escaping from the path-help for the 'config' endpoint.
 	`
+
+ 	stateLogin = "Vault-Login"
 )
