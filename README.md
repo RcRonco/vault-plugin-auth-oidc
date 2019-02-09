@@ -1,6 +1,5 @@
 # Vault Plugin: OIDC Auth Backend
 
-### Don't ready for production yet
 This is a standalone backend plugin for use with [Hashicorp Vault](https://www.github.com/hashicorp/vault).   
 This plugin allows for OpenID Connect, Code flow to authenticate with Vault.    
 This plugin build to allow true sso for Vault UI.
